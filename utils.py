@@ -40,26 +40,51 @@ def uniformity_loss(features):
     return unif_loss
 
 def infonce_loss(batch_data, temperature=0.5):
-    # Get the size of the batch (2n, d)
-    n, d = batch_data.shape[0] // 2, batch_data.shape[1]
-    # Split batch_data into two parts: frame 1 and frame 2
-    frame_1, frame_2 = batch_data[:n], batch_data[n:]
-    # Compute similarity matrix between all pairs (n x n)
-    # Similarity is computed using the dot product between frame_1 and frame_2
-    similarity_matrix = torch.mm(frame_1, frame_2.T) / temperature
-    # Extract positive logits (diagonal elements)
-    positive_logits = torch.diag(similarity_matrix).view(n, 1)
-    # Extract negative logits by masking out the positive pairs
-    mask = torch.eye(n, device=batch_data.device).bool()
-    negative_logits = similarity_matrix[~mask].view(n, -1)
-    # Concatenate positive and negative logits
-    logits = torch.cat((positive_logits, negative_logits), dim=1)
-    # Create labels for the positive pairs (the positive pair is always at index 0)
-    labels = torch.zeros(n, dtype=torch.long, device=batch_data.device)
-    # Calculate the cross entropy loss
-    loss = F.cross_entropy(logits, labels)
-    return loss
+    """
+    Computes InfoNCE contrastive loss for a batch of embeddings.
+    
+    batch_data: Tensor of shape [batch_size, d], assumed to contain
+                2 augmented views per sample.
+    temperature: Scaling factor for the similarity logits.
+    
+    This version handles odd batch sizes safely.
+    """
+    batch_size, d = batch_data.shape
 
+    # Ensure we have at least one pair
+    if batch_size < 2:
+        raise ValueError("Batch size must be at least 2 for contrastive loss.")
+
+    # Drop the last sample if batch size is odd
+    if batch_size % 2 != 0:
+        batch_data = batch_data[:-1]
+        batch_size -= 1
+
+    n = batch_size // 2  # number of pairs
+
+    # Split batch into two views
+    frame_1, frame_2 = batch_data[:n], batch_data[n:]
+
+    # Compute similarity matrix (n x n)
+    similarity_matrix = torch.mm(frame_1, frame_2.T) / temperature
+
+    # Positive logits are the diagonal elements
+    positive_logits = torch.diag(similarity_matrix).unsqueeze(1)  # [n,1]
+
+    # Mask out positive pairs to get negative logits
+    mask = torch.eye(n, device=batch_data.device).bool()
+    negative_logits = similarity_matrix[~mask].reshape(n, n-1)  # [n, n-1]
+
+    # Concatenate positive and negative logits
+    logits = torch.cat([positive_logits, negative_logits], dim=1)  # [n, n]
+
+    # Labels: positive pair is always index 0
+    labels = torch.zeros(n, dtype=torch.long, device=batch_data.device)
+
+    # Compute cross-entropy loss
+    loss = F.cross_entropy(logits, labels)
+
+    return loss
 
 def compute_pck_pckh(dt_kpts,gt_kpts,thr,align=False,dataset='mmfi-csi'):
     """

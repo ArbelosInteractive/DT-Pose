@@ -20,11 +20,10 @@ from utils import *
 from tqdm import tqdm
 
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Pre-training Stage")
     parser.add_argument("--config_file", type=str, help="Configuration YAML file", default='config/mmfi/pretrain_config.yaml')
+    parser.add_argument("--resume", action="store_true", help="Resume training from last checkpoint")
     args = parser.parse_args()
 
     with open(args.config_file, 'r') as fd:
@@ -98,12 +97,32 @@ if __name__ == '__main__':
     lr_func = lambda epoch: min((epoch + 1) / (config['warmup_epoch'] + 1e-8), 0.5 * (math.cos(epoch / config['total_epoch'] * math.pi) + 1))
     lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda=lr_func)
 
+    start_epoch = 0
+    step_count = 0
+    weights_path = os.path.join(config['save_path'], config['dataset_name'], config['experiment_name'])
 
-    epoch_bar = tqdm(range(config['total_epoch']), desc="Epochs", position=0)
+    if not os.path.exists(weights_path):
+        os.makedirs(weights_path)
+
+    if args.resume:
+        checkpoint_file = os.path.join(weights_path, 'pretrain_checkpoint.pt')
+        if os.path.exists(checkpoint_file):
+            print(f"Resuming training from checkpoint: {checkpoint_file}")
+            checkpoint = torch.load(checkpoint_file, map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optim.load_state_dict(checkpoint['optimizer_state_dict'])
+            lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1
+            step_count = checkpoint['step_count']
+        else:
+            print(f"No checkpoint found at {checkpoint_file}, starting from scratch.")
+
+
+    epoch_bar = tqdm(range(start_epoch, config['total_epoch']), desc="Epochs", position=0)
     batch_bar = tqdm(total=len(train_loader), desc="│ ├─ Batch", position=1, leave=False)
 
     # TODO: Codes for training (and saving models)
-    step_count = 0
+    # step_count = 0
     optim.zero_grad()
     for epoch in epoch_bar:
         model.train()
@@ -196,9 +215,18 @@ if __name__ == '__main__':
 
         ''' save model '''
         weights_path = os.path.join(config['save_path'], config['dataset_name'], config['experiment_name'])
-        if not os.path.exists(weights_path):
-            os.makedirs(weights_path)
-        torch.save(model, '{}/pretrain_{}.pt'.format(weights_path, config['model_name']))
+        # if not os.path.exists(weights_path):
+        #     os.makedirs(weights_path)
+        # torch.save(model, '{}/pretrain_{}.pt'.format(weights_path, config['model_name']))
+
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optim.state_dict(),
+            'lr_scheduler_state_dict': lr_scheduler.state_dict(),
+            'step_count': step_count,
+        }
+        torch.save(checkpoint, f'{weights_path}/pretrain_checkpoint.pt')
 
 
     batch_bar.close()
