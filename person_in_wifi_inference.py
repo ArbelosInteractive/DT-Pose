@@ -52,7 +52,7 @@ if __name__ == '__main__':
         print('*'*20+'   Load Pretrain Weights   '+'*'*20)
         print('*'*20+'  '+config['dataset_name']+','+config['setting']+','+config['experiment_name']+'   '+'*'*20)
         model = torch.load(config['pretrained_model_path'], map_location='cpu')
-        writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['setting'], 'pose_pretrain',config['experiment_name']))
+        # writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['setting'], 'pose_pretrain',config['experiment_name']))
        
         if config['dataset_name'] == 'person-in-wifi-3d':
             model = ViT_Pose_Decoder(model.encoder, keypoints=14, coor_num=3, token_num=90*10, dataset=config['dataset_name'], num_person=config['num_person']).to(device)
