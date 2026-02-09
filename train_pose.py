@@ -71,7 +71,7 @@ if __name__ == '__main__':
     if config['pretrained_model_path'] is not None:
         print('*'*20+'   Load Pretrain Weights   '+'*'*20)
         print('*'*20+'  '+config['dataset_name']+','+config['setting']+','+config['experiment_name']+'   '+'*'*20)
-        model = torch.load(config['pretrained_model_path'], map_location='cpu')
+        model = torch.load(config['pretrained_model_path'], map_location='cpu', weights_only=False)
         writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['setting'], 'pose_pretrain',config['experiment_name']))
         if config['dataset_name'] == 'mmfi-csi':
             model = ViT_Pose_Decoder(model.encoder, keypoints=17, coor_num=3, token_num=114, dataset=config['dataset_name']).to(device)   # 72*5

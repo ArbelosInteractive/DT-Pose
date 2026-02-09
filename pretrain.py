@@ -110,6 +110,8 @@ if __name__ == '__main__':
             print(f"Resuming training from checkpoint: {checkpoint_file}")
             checkpoint = torch.load(checkpoint_file, map_location=device)
             model.load_state_dict(checkpoint['model_state_dict'])
+
+            
             optim.load_state_dict(checkpoint['optimizer_state_dict'])
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
             start_epoch = checkpoint['epoch'] + 1
