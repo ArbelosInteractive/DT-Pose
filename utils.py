@@ -88,13 +88,13 @@ def infonce_loss(batch_data, temperature=0.5):
 
 def compute_pck_pckh(dt_kpts,gt_kpts,thr,align=False,dataset='mmfi-csi'):
     """
-    pck指标计算
-    :param dt_kpts:算法检测输出的估计结果,shape=[n,h,w]=[行人数，２，关键点个数]
-    :param gt_kpts: groundtruth人工标记结果,shape=[n,h,w]
-    :param refer_kpts: 尺度因子，用于预测点与groundtruth的欧式距离的scale。
-    　　　　　　　　　　　pck指标：躯干直径，左肩点－右臀点的欧式距离；
-    　　　　　　　　　　　pckh指标：头部长度，头部rect的对角线欧式距离；
-    :return: 相关指标
+    pck Indicator calculation
+    :param dt_kpts:The estimated result of the algorithm detection output,shape=[n,h,w]=[num persons，２，Number of key points]
+    :param gt_kpts: groundtruth (Manually labeled results),shape=[n,h,w]
+    :param refer_kpts: The scaling factor is used to predict the Euclidean distance between a point and the ground truth.。
+    　　　　　　　　　　　pck Indicators: Trunk diameter, Euclidean distance between left shoulder point and right hip point；
+    　　　　　　　　　　　pck h-metric: Head length, Euclidean distance of the head rect diagonal.；
+    :return: Related indicators
     """
     dt=np.array(dt_kpts)
     gt=np.array(gt_kpts)
