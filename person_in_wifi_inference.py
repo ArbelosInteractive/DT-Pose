@@ -5,19 +5,17 @@ import math
 import yaml
 import numpy as np
 import torch
-import torchvision
-from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import ToTensor, Compose, Normalize
+# import torchvision
+# from torch.utils.tensorboard import SummaryWriter
+# from torchvision.transforms import ToTensor, Compose, Normalize
 
-# from feeder.mmfi import make_dataset, make_dataloader
 from feeder.person_in_wifi_3d import PersonInWif3D, piw3_make_dataloader
-# from feeder.wipose import WiPose, wp_make_dataloader
 
 from utils import *
 from model.model import *
 from utils import setup_seed
 
-from torchvision import models, transforms
+# from torchvision import models, transforms
 
 from model.metafi.mynetwork import metafinet, metafi_weights_init
 from model.hpeli.hpeli import hpelinet, hpeli_weights_init
@@ -54,62 +52,16 @@ if __name__ == '__main__':
         print('*'*20+'   Load Pretrain Weights   '+'*'*20)
         print('*'*20+'  '+config['dataset_name']+','+config['setting']+','+config['experiment_name']+'   '+'*'*20)
         model = torch.load(config['pretrained_model_path'], map_location='cpu')
-        writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['setting'], 'pose_pretrain',config['experiment_name']))
+        # writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['setting'], 'pose_pretrain',config['experiment_name']))
        
         if config['dataset_name'] == 'person-in-wifi-3d':
             model = ViT_Pose_Decoder(model.encoder, keypoints=14, coor_num=3, token_num=90*10, dataset=config['dataset_name'], num_person=config['num_person']).to(device)
             optim = torch.optim.AdamW(filter(lambda p:p.requires_grad, model.parameters()), lr=1e-3) 
 
-        # save model
-        # weights_path = os.path.join(config['save_path'], config['dataset_name'], config['setting'], 'pose_pretrain', config['experiment_name'])
-        # if not os.path.exists(weights_path):
-        #     os.makedirs(weights_path)
-        # # save train feature
-        # train_feature_path = os.path.join('features', config['dataset_name'], config['setting'], 'pose_pretrain', config['experiment_name'])
-        # if not os.path.exists(train_feature_path):
-        #     os.makedirs(train_feature_path)
         # save test feature
         test_feature_path = os.path.join('features', config['dataset_name'], config['setting'], 'pose_pretrain', config['experiment_name'])
         if not os.path.exists(test_feature_path):
             os.makedirs(test_feature_path)
-    # else:
-    #     print('*'*20+'   Training from Scratch  '+'*'*20)
-    #     print('*'*20+'  '+config['dataset_name']+','+config['setting']+','+config['experiment_name']+'   '+'*'*20)
-    #     writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['setting'], 'pose_scratch',config['experiment_name']))
-        
-    #     if config['dataset_name'] == 'person-in-wifi-3d':
-    #         if config['experiment_name'] == 'metafi':
-    #             model = metafinet(num_keypoints=14, num_coor=3, num_person=config['num_person'],dataset=config['dataset_name']).to(device)
-    #             model.apply(metafi_weights_init)
-    #             optim = torch.optim.AdamW(model.parameters(), lr=1e-2)  
-    #         elif config['experiment_name'] == 'hpeli':
-    #             model = hpelinet(num_keypoints=14, num_coor=3, subcarrier_num=180, num_person=config['num_person'],dataset=config['dataset_name']).to(device)
-    #             model.apply(hpeli_weights_init)
-    #             optim = torch.optim.AdamW(model.parameters(), lr=1e-2)
-    #         else:
-    #             model = MAE_ViT(image_size=(180, 20),
-    #                     patch_size=(2,2),
-    #                     encoder_layer=4,
-    #                     encoder_head=4,
-    #                     decoder_layer=2,
-    #                     decoder_head=4,
-    #                     emb_dim=256,
-    #                     input_dim=3)
-    #             model = ViT_Pose_Decoder(model.encoder, keypoints=14, coor_num=3, token_num=900, dataset=config['dataset_name'], num_person=config['num_person']).to(device)
-    #             optim = torch.optim.SGD(model.parameters(),lr=1e-2, momentum=0.9)
-    
-    #     # save model
-    #     weights_path = os.path.join(config['save_path'], config['dataset_name'], config['setting'], 'pose_scratch', config['experiment_name'])
-    #     if not os.path.exists(weights_path):
-    #         os.makedirs(weights_path)
-    #     # save train feature
-    #     train_feature_path = os.path.join('features', config['dataset_name'], config['setting'], 'pose_scratch', config['experiment_name'])
-    #     if not os.path.exists(train_feature_path):
-    #         os.makedirs(train_feature_path)
-    #     # save test feature
-    #     test_feature_path = os.path.join('features', config['dataset_name'], config['setting'], 'pose_scratch', config['experiment_name'])
-    #     if not os.path.exists(test_feature_path):
-    #         os.makedirs(test_feature_path)
 
 
 
@@ -185,31 +137,3 @@ if __name__ == '__main__':
     if config['dataset_name'] == 'person-in-wifi-3d':
         np.savez(os.path.join(test_feature_path, 'test_feature.npz'), fea=feature_list, pred_pose=pred_list, gt_pose=gt_list, att=[attention_list_first, attention_list_second], wifi=wifi_list)    
   
-
-    # ''' save model '''
-    # # save mpjpe pampjpe
-    # if avg_val_mpjpe < best_val_mpjpe:
-    #     best_val_mpjpe = avg_val_mpjpe
-    #     print(f'saving best model with mpjpe {best_val_mpjpe} at {epoch} epoch!')  
-    #     torch.save(model, '{}/pose_mpjpe.pt'.format(weights_path)) 
-    # if avg_val_pampjpe < best_val_pampjpe:
-    #     best_val_pampjpe = avg_val_pampjpe
-    #     print(f'saving best model with pa-mpjpe {best_val_pampjpe} at {epoch} epoch!')
-    #     torch.save(model, '{}/pose_pampjpe.pt'.format(weights_path)) 
-    # for idx, pck_value in enumerate(pck_overall):
-    #     if pck_value > best_val_pck[idx]:
-    #         best_val_pck[idx] = pck_value
-    #         print(f'saving best model with pck{pck_order[idx]} {best_val_pck[idx]} at {epoch} epoch!')
-    #         torch.save(model, '{}/pose_pck{}.pt'.format(weights_path, pck_order[idx]))
-    
-
-    # writer.add_scalars('cls/loss', {'train' : avg_train_loss, 'val' : avg_val_loss}, global_step=epoch)
-
-    # print('*'*100)
-    # print(f'Best mpjpe: {best_val_mpjpe}') 
-    # print(f'Best pa-mpjpe: {best_val_pampjpe}')  
-    # for idx, pck_value in enumerate(best_val_pck):
-    #     print(f'Best pck{pck_order[idx]}: {pck_value}')   
-    # print('*'*100)
-    
-    
