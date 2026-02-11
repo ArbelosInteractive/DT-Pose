@@ -211,8 +211,8 @@ if __name__ == '__main__':
             predicted_pose, feature = model(csi_data)
             if config['dataset_name'] == 'person-in-wifi-3d':
                 person_num = batch_data['person_num'].to(device)
-                predicted_pose = torch.cat([predicted_pose[:,:num,:,:].reshape((-1, 14, 3)) for num in person_num], dim=0)
-                pose_gt = torch.cat([pose_gt[:,:num,:,:].reshape((-1, 14, 3)) for num in person_num], dim=0)
+                predicted_pose = torch.cat([predicted_pose[idx,:num,:,:].reshape((-1, 14, 3)) for idx, num in enumerate(person_num)], dim=0)
+                pose_gt = torch.cat([pose_gt[idx,:num,:,:].reshape((-1, 14, 3)) for idx, num in enumerate(person_num)], dim=0)
 
             gt_list.append(pose_gt.data.cpu().numpy())
             pred_list.append(predicted_pose.data.cpu().numpy())
@@ -279,8 +279,8 @@ if __name__ == '__main__':
 
                 if config['dataset_name'] == 'person-in-wifi-3d':
                     person_num = batch_data['person_num'].to(device)
-                    predicted_val_pose = torch.cat([predicted_val_pose[:,:num,:,:].reshape((-1, 14, 3)) for num in person_num], dim=0)
-                    val_pose_gt = torch.cat([val_pose_gt[:,:num,:,:].reshape((-1, 14, 3)) for num in person_num], dim=0)
+                    predicted_val_pose = torch.cat([predicted_val_pose[idx,:num,:,:].reshape((-1, 14, 3)) for idx, num in enumerate(person_num)], dim=0)
+                    val_pose_gt = torch.cat([val_pose_gt[idx,:num,:,:].reshape((-1, 14, 3)) for idx, num in enumerate(person_num)], dim=0)
 
 
                 feature_list.append(pred_fea.data.cpu().numpy())
