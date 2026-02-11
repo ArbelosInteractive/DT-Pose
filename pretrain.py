@@ -5,9 +5,9 @@ import math
 import yaml
 import numpy as np
 import torch
-import torchvision
+# import torchvision
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import ToTensor, Compose, Normalize
+# from torchvision.transforms import ToTensor, Compose, Normalize
 
 from feeder.mmfi import make_dataset, make_dataloader
 from feeder.person_in_wifi_3d import PersonInWif3D, piw3_make_dataloader
@@ -15,13 +15,15 @@ from feeder.wipose import WiPose, wp_make_dataloader
 
 from model.model import *
 from utils import *
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+# from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 
+from tqdm import tqdm
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Pre-training Stage")
     parser.add_argument("--config_file", type=str, help="Configuration YAML file", default='config/mmfi/pretrain_config.yaml')
+    parser.add_argument("--resume", action="store_true", help="Resume training from last checkpoint")
     args = parser.parse_args()
 
     with open(args.config_file, 'r') as fd:
@@ -59,6 +61,9 @@ if __name__ == '__main__':
     # TODO: Settings, e.g., your model, optimizer, device, ...
     writer = SummaryWriter(os.path.join('logs', config['dataset_name'], config['experiment_name'], 'pretrain', config['model_name']))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    print(f"device: {device}")
+
     if config['dataset_name'] == 'mmfi-csi':
         model = MAE_ViT(image_size=(114, 10),
                     patch_size=(2,2),   # (2,2)
@@ -90,18 +95,47 @@ if __name__ == '__main__':
                     mask_ratio=config['mask_ratio']).to(device)
     optim = torch.optim.AdamW(model.parameters(), lr=config['base_learning_rate'] * config['batch_size'] / 256, betas=(0.9, 0.95), weight_decay=config['weight_decay'])
     lr_func = lambda epoch: min((epoch + 1) / (config['warmup_epoch'] + 1e-8), 0.5 * (math.cos(epoch / config['total_epoch'] * math.pi) + 1))
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda=lr_func, verbose=True)
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda=lr_func)
 
+    start_epoch = 0
+    step_count = 0
+    weights_path = os.path.join(config['save_path'], config['dataset_name'], config['experiment_name'])
+
+    if not os.path.exists(weights_path):
+        os.makedirs(weights_path)
+
+    if args.resume:
+        checkpoint_file = os.path.join(weights_path, 'pretrain_checkpoint.pt')
+        if os.path.exists(checkpoint_file):
+            print(f"Resuming training from checkpoint: {checkpoint_file}")
+            checkpoint = torch.load(checkpoint_file, map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
+
+            
+            optim.load_state_dict(checkpoint['optimizer_state_dict'])
+            lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1
+            step_count = checkpoint['step_count']
+        else:
+            print(f"No checkpoint found at {checkpoint_file}, starting from scratch.")
+
+
+    epoch_bar = tqdm(range(start_epoch, config['total_epoch']), desc="Epochs", position=0)
+    batch_bar = tqdm(total=len(train_loader), desc="│ ├─ Batch", position=1, leave=False)
 
     # TODO: Codes for training (and saving models)
-    step_count = 0
+    # step_count = 0
     optim.zero_grad()
-    for epoch in range(config['total_epoch']):
+    for epoch in epoch_bar:
         model.train()
         losses = []
         losses_mse = []
         losses_unif = []
         losses_contrastive = []
+
+        batch_bar.reset(total=len(train_loader))
+        batch_bar.refresh()                        
+
         for batch_idx, batch_data in enumerate(train_loader):
             step_count += 1
             # Please check the data structure here.
@@ -125,6 +159,14 @@ if __name__ == '__main__':
             losses_mse.append(loss_mse.item())
             losses_unif.append(0.01 * loss_unif.item())
             losses_contrastive.append(cl_lambda *loss_contrastive.item())
+
+            batch_bar.update(1)
+            batch_bar.set_postfix(
+                mse=f"{loss_mse.item():.4f}",
+                cl=f"{loss_contrastive.item():.4f}",
+                lr=f"{optim.param_groups[0]['lr']:.2e}"
+            )
+
         lr_scheduler.step()
         avg_loss = sum(losses) / len(losses)
         avg_loss_mse = sum(losses_mse) / len(losses_mse)
@@ -138,7 +180,7 @@ if __name__ == '__main__':
                                     }, global_step=epoch)
         current_lr = optim.param_groups[0]['lr']
         writer.add_scalar('learning_rate', current_lr, global_step=epoch)
-        print(f'In epoch {epoch}, average traning loss is {avg_loss}.')
+        print(f'In epoch {epoch}, average training loss is {avg_loss}.')
 
         # # TODO: Codes for test (if)
         ''' visualize the first 16 predicted images on val dataset'''
@@ -175,8 +217,19 @@ if __name__ == '__main__':
 
         ''' save model '''
         weights_path = os.path.join(config['save_path'], config['dataset_name'], config['experiment_name'])
-        if not os.path.exists(weights_path):
-            os.makedirs(weights_path)
-        torch.save(model, '{}/pretrain_{}.pt'.format(weights_path, config['model_name']))
+        # if not os.path.exists(weights_path):
+        #     os.makedirs(weights_path)
+        # torch.save(model, '{}/pretrain_{}.pt'.format(weights_path, config['model_name']))
+
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optim.state_dict(),
+            'lr_scheduler_state_dict': lr_scheduler.state_dict(),
+            'step_count': step_count,
+        }
+        torch.save(checkpoint, f'{weights_path}/pretrain_checkpoint.pt')
 
 
+    batch_bar.close()
+    epoch_bar.close()

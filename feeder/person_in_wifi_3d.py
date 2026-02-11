@@ -21,7 +21,7 @@ class PersonInWif3D(Dataset):
             self.data_root = os.path.join(self.data_root, 'train_data')
             self.filename_list_path = os.path.join(self.data_root, 'train_data_list.txt')
             self.data_list = self.load_train_data(self.filename_list_path, self.experiment_name)
-            print(f'{self.experiment_name}: Traning sample {len(self.data_list)}.')
+            print(f'{self.experiment_name}: Training sample {len(self.data_list)}.')
         elif self.split == 'validation':
             self.data_root = os.path.join(self.data_root, 'test_data')
             self.filename_list_path = os.path.join(self.data_root, 'test_data_list.txt')

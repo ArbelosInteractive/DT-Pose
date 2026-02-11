@@ -96,10 +96,10 @@ def main():
                 os.makedirs(csi_ph_path)
             np.save(f'{csi_ph_path}/{str(name)}.npy', csi_ph)
 
-            # csi_ap_path = os.path.join(setting_path.split('/')[0], 'csi_ap'):
-            # if not os.path.exists(csi_ap_path):
-            #     os.makedirs(csi_ap_path)
-            # np.save(f'{csi_ap_path}/{str(name)}.npy', csi)
+            csi_ap_path = os.path.join(setting_path.split('/')[0], 'csi_ap')
+            if not os.path.exists(csi_ap_path):
+                os.makedirs(csi_ap_path)
+            np.save(f'{csi_ap_path}/{str(name)}.npy', csi)
             
             print(f'Down: {csi_path}')
     print('All Down.')
